@@ -7,25 +7,37 @@ var misses = 0;
 function signIn() {
     // 1. Sign in with firebase. https://firebase.google.com/docs/auth/web/google-signin
     // stub: 
-	alert("sign in stub");
+	firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider())
+            .then(console.log)
+            .catch(console.log);
 }
 
 function signOut() {
     // 2. Sign out with firebase. https://firebase.google.com/docs/auth/web/google-signin#next_steps
     //stub: 
-	alert("sign out stub");
+	firebase.auth()
+        .signOut()
+        .catch(console.log);
 }
 
 window.onload = function() {
     // 3. Subscribe on sign in changes. https://firebase.google.com/docs/auth/web/manage-users
     // stub: 
-	updateUserView(null);
+	firebase.auth().onAuthStateChanged(updateUserView);
 
     // 4. Subscribe on scoreboard changed. https://firebase.google.com/docs/database/web/read-and-write#listen_for_value_events
+
+    firebase.database().ref('scoreboard')
+        .orderByValue()
+        .limitToLast(10)
+        .on('value', function (snap) {
+            updateScoreboard(snap.val());
+        });
+
     // 5. Limit scoreboard to 10 top records. https://firebase.google.com/docs/database/web/lists-of-data#sort_data
     // 6. Add index in console. https://firebase.google.com/docs/database/security/indexing-data#section-indexing-order-by-value  
     // stub: 
-	updateScoreboard({'Pavel Egorov':234, 'Dmitriy Mramorov': 238});
+	//updateScoreboard({'Pavel Egorov':234, 'Dmitriy Mramorov': 238});
 
     updateEmHandlers();
 }
@@ -36,7 +48,10 @@ function startLevel(level) {
     misses = 0;
     // 7. Get level text from levels/{levelIndex}. Without subscription!!! https://firebase.google.com/docs/database/web/read-and-write#read_data_once
     // stub: 
-	setMainText("{Некоторый} текст");
+    var text = firebase.database().ref('levels').once('value').then(function(snap) {
+        setMainText(snap.val()[levelIndex].text);
+    });
+	
 
 	$(".main-button").show();
 	$(".go-button").html("Ещё!").hide();
@@ -47,6 +62,21 @@ function finishLevel() {
     $(".main-button").hide();
     setMainText("<em>Вроде бы</em> повержено стоп-слов — " + stopWordsFound + ". <em>При этом, к сожалению,</em> промахов — " + misses + ".");
     // 8. Send scores! (Read score then write score+1). https://firebase.google.com/docs/database/web/read-and-write#basic_write
+    var user = firebase.auth().currentUser.displayName;
+    firebase.database().ref('scoreboard/' + user).once('value', function (sn) {
+        var value = sn.val();
+        if (!value)
+            value = 0;
+        firebase.database().ref('scoreboard/' + user).set(value + stopWordsFound);
+    });
+
+    // function writeUserData(user, name, email, imageUrl) {
+    //   firebase.database().ref(user).set({
+    //     username: name,
+    //     email: email,
+    //     profile_picture : imageUrl
+    //   });
+    // }
 
     updateEmHandlers();
 }
